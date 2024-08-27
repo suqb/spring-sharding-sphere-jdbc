@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.suqb.www.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.suqb.www.domain.UserEntity">
+            <id property="id" column="id" jdbcType="BIGINT"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="sex" column="sex" jdbcType="VARCHAR"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,sex
+    </sql>
+    
+    <select id="selectByType" resultType="com.suqb.www.domain.UserEntity">
+        <choose>
+            <when test="name == 't1'">
+                select id, name, sex from tb_user_0 order by id desc limit 1;
+            </when>
+            <when test="name == 't2'">
+                select id, name, sex from tb_user_0 order by id asc limit 1;
+            </when>
+        </choose>
+    </select>
+</mapper>

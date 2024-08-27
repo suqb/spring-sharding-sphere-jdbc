@@ -1,0 +1,56 @@
+server:
+  port: 8989
+spring:
+  shardingsphere:
+    datasource:
+      # 数据源名称，有几个数据源就写几个，如果是分表，就会写多个
+      names: db0
+      # 为每个数据源单独配置，注意这里要跟上面写的名称一致
+      db0:
+        # 数据库连接池实现类型，这里使用的是Hikari
+        type: com.zaxxer.hikari.HikariDataSource
+        # 数据库驱动类，连接地址，用户名，密码等
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://120.77.246.22:3306/sharding-jdbc?useUnicode=true&characterEncoding=utf8&useSSL=false
+        username: root
+        password: wmj18476723899
+    rules:
+      sharding:
+        tables:
+          # 分表的表名，程序中对这张表的操作，都会采用下面的路由方案
+          tb_user:
+            # 这里是实际的数据节点信息，要把库名和表名都写全，这里也支持使用表达式，比如下面这张$->{0..9}
+            actual-data-nodes: db0.tb_user_$->{0..9}
+            # 配置分表策略
+            table-strategy:
+              # 这里选择的标准策略，也可以配置复杂策略，或者也可以用代码来实现
+              standard:
+                # 分片字段，这里是用用户id作为分片字段
+                sharding-column: id
+                # 这里是我们自定义的分片算法名称，后面会有实现方案
+                sharding-algorithm-name: user-inline
+            # 主键生成策略
+            key-generate-strategy:
+              # 生成主键算法的名称
+              key-generator-name: snowflake
+              # 主键字段
+              column: id
+        # 自定义的主键算法
+        key-generators:
+          snowflake:
+            # 使用雪花算法生成主键
+            type: SNOWFLAKE
+        # 自定义的分表算法
+        sharding-algorithms:
+          user-inline:
+            #使用inline类型实现
+            type: inline
+            props:
+              #分片表达式，用id对10取模，然后分散到10个表中
+              algorithm-expression: tb_user_$->{id % 10}
+    props:
+      # 打印日志，方便我们观察执行的sql语句
+      sql-show: true
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
