@@ -12,8 +12,8 @@ spring:
         # 数据库驱动类，连接地址，用户名，密码等
         driver-class-name: com.mysql.cj.jdbc.Driver
         jdbc-url: jdbc:mysql://192.168.98.43:3306/bessky_pss?useUnicode=true&characterEncoding=utf8&useSSL=false
-        username: fix_user
-        password: DbTest@9098%
+        username: xxxxx
+        password: xxxxxx
     rules:
       sharding:
         tables:
