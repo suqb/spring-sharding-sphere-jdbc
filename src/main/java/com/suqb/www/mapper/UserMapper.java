@@ -3,6 +3,9 @@ package com.suqb.www.mapper;
 import com.suqb.www.domain.UserEntity;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
+import java.util.List;
+import java.util.Map;
+
 /**
 * @author wumingjie
 * @description 针对表【tb_user】的数据库操作Mapper
@@ -12,6 +15,10 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 public interface UserMapper extends BaseMapper<UserEntity> {
 
     UserEntity selectByType(UserEntity userEntity);
+
+    List<UserEntity> querySkuFeatureBySku(List<String> skuList);
+
+    List<UserEntity> queryBySql(String sql);
 }
 
 

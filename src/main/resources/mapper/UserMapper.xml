@@ -24,4 +24,13 @@
             </when>
         </choose>
     </select>
+    <select id="querySkuFeatureBySku" resultType="com.suqb.www.domain.UserEntity">
+        select product_sku as `name`, product_feature as `sex` from t_product <foreach collection="list" item="sku" open="WHERE product_sku IN (" separator=" , " close=")">
+        #{sku}
+    </foreach>
+    </select>
+
+    <select id="queryBySql" resultType="com.suqb.www.domain.UserEntity">
+        ${sql}
+    </select>
 </mapper>
