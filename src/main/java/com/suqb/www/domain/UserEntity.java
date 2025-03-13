@@ -36,32 +36,30 @@ public class UserEntity implements Serializable
      */
     private String sex;
 
-    private String platformOrderId;
-    private String productSku;
-    private Integer saleQuantity;
+
+    private Integer productId;
     private Integer parentId;
-    private String categoryName;
+    private Integer productBuyer;
+
+    private Integer quantity;
+
+    private Integer supplierId;
     private Integer categoryId;
-
-    private String productTitle;
-    private String productFeature;
-    private Integer listingStatus;
-    private Timestamp completionDate;
-
-    private Integer yesterdaySales;
-    private Integer leastThirtySales;
-    private Integer leastThreeSales, leastSevenSales, leastFifteenSales;
     private Integer leastSixtySales;
-    private Integer historySales;
+    private Double refundRate60;
 
+    private Double price;
 
-    private Integer inTransitStock;
-    private Integer stock;
-    private Integer stockout;
+    private String supplierNumber;
+    private String categoryName;
 
-
+    private String supplierName;
     private Integer priority;
-    private BigDecimal purchasePrice;
+
+    private String productSku;
+    private Double salesPrice;
+
+
 
 
     @TableField(exist = false)

@@ -2,23 +2,29 @@ package com.suqb.www;
 
 import cn.hutool.core.collection.CollUtil;
 import com.alibaba.excel.EasyExcel;
+import com.baomidou.mybatisplus.core.mapper.Mapper;
 import com.suqb.www.domain.UserEntity;
 import com.suqb.www.domain.dto.SkuMapDTO;
-import com.suqb.www.domain.excel.LargeSaleExcelEntity;
-import com.suqb.www.domain.excel.SkuCategoryEntity;
-import com.suqb.www.domain.excel.SupplierEntity;
+import com.suqb.www.domain.excel.*;
 import com.suqb.www.listener.DataListener;
 import com.suqb.www.mapper.UserMapper;
 import com.suqb.www.service.SkuMapService;
+import com.suqb.www.util.AddressUtils;
+import org.dom4j.DocumentException;
 import org.junit.jupiter.api.Test;
 import org.junit.platform.commons.util.StringUtils;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.converter.StringHttpMessageConverter;
 
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @SpringBootTest
@@ -30,6 +36,12 @@ class SpringShardingSphereJdbcApplicationTests
 
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private StringHttpMessageConverter stringHttpMessageConverter;
+    @Autowired
+    private Mapper mapper;
+    @Autowired
+    private ListableBeanFactory listableBeanFactory;
 
 
     @Test
@@ -37,92 +49,724 @@ class SpringShardingSphereJdbcApplicationTests
     {
     }
 
+//    @Test
+//    public void query()
+//    {
+//
+//        ArrayList<ProductEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/匹配供应商编号.xlsx/", ProductEntity.class, new DataListener<>(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//        String collect = exportList.stream().map(ProductEntity::getSku).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//
+//        Map<String, Integer> productInfoList = userMapper.queryBySql("SELECT product_id, product_sku FROM t_product WHERE product_sku IN (" + collect + ");")
+//                .stream().collect(Collectors.toMap(UserEntity::getProductSku, UserEntity::getProductId));
+//
+//        String collect2 = productInfoList.values().stream().map(String::valueOf).collect(Collectors.joining(","));
+//
+//        Map<Integer, List<UserEntity>> supplierGroup = userMapper.queryBySql("SELECT product_id, priority, t_supplier.supplier_number FROM t_product_supplier LEFT JOIN t_supplier ON t_product_supplier.supplier_id = t_supplier.supplier_id WHERE product_id IN (" + collect2 + ");").stream()
+//                .collect(Collectors.groupingBy(UserEntity::getProductId));
+//
+//        for (ProductEntity product : exportList)
+//        {
+//            Integer productId = productInfoList.get(product.getSku());
+//
+//            if (productId != null)
+//            {
+//                List<UserEntity> supplierList = supplierGroup.get(productId);
+//
+//                if (CollUtil.isNotEmpty(supplierList))
+//                {
+//                    supplierList.stream().peek(e -> {
+//                                if (e.getPriority() == null)
+//                                {
+//                                    e.setPriority(0);
+//                                }
+//                            }).min(Comparator.comparing(UserEntity::getPriority))
+//                            .ifPresent(supplier -> product.setSupplierNumber(supplier.getSupplierNumber()));
+//                }
+//            }
+//        }
+//
+//
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/匹配供应商编号-已处理.xlsx", ProductEntity.class)
+//                .sheet("sku-一级供应商编号")
+//                .doWrite(exportList);
+//    }
+
+//    @Test
+//    public void query()
+//    {
+//
+//        ArrayList<ProductEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/SKU数据-3.10.xlsx/", ProductEntity.class, new DataListener<>(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//        String collect = exportList.stream().map(ProductEntity::getSku).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//
+//        Map<String, UserEntity> productInfoList = userMapper.queryBySql("SELECT product_id, product_sku, product_buyer FROM t_product WHERE product_sku IN (" + collect + ");")
+//                .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity()));
+//
+//        String collect2 = productInfoList.values().stream().map(UserEntity::getProductBuyer).filter(Objects::nonNull).distinct().map(String::valueOf).collect(Collectors.joining(","));
+//
+//        Map<Integer, String> userMap = userMapper.queryBySql("SELECT u1.user_id AS id, u2.name as name FROM t_user u1 left JOIN t_user u2 ON u1.supervisor = u2.user_id WHERE u1.user_id IN (" + collect2 + ")")
+//                .stream().collect(Collectors.toMap(UserEntity::getId, UserEntity::getName));
+//
+//        String collect1 = productInfoList.values().stream().map(UserEntity::getProductId).map(String::valueOf).collect(Collectors.joining(","));
+//
+//        Map<Integer, List<UserEntity>> supplierGroup = userMapper.queryBySql("SELECT product_id, supplier_id, priority, sales_price FROM t_product_supplier WHERE product_id in(" + collect1 + ")").stream()
+//                .collect(Collectors.groupingBy(UserEntity::getProductId));
+//
+//        for (ProductEntity product : exportList)
+//        {
+//            UserEntity entity = productInfoList.get(product.getSku());
+//
+//            Integer productBuyer = entity.getProductBuyer();
+//
+//            product.setManager(userMap.get(productBuyer));
+//
+//            Integer productId = entity.getProductId();
+//
+//            List<UserEntity> supplierList = supplierGroup.get(productId);
+//
+//            if (CollUtil.isNotEmpty(supplierList))
+//            {
+//                supplierList.stream().peek(e -> {
+//                    if (e.getPriority() == null)
+//                    {
+//                        e.setPriority(0);
+//                    }
+//                }).min(Comparator.comparing(UserEntity::getPriority))
+//                        .ifPresent(supplier -> product.setSkuPrice(supplier.getSalesPrice()));
+//            }
+//        }
+//
+//
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/SKU数据-3.10-已处理.xlsx", ProductEntity.class)
+//                .sheet("退款率")
+//                .doWrite(exportList);
+//    }
 
 
-    @Test
-    public void exportCategory()
-    {
+//    @Test
+//    public void query()
+//    {
+//        List<UserEntity> productInfoList = userMapper.queryBySql("SELECT product_sku, least_sixty_sales, refund_rate60, category_id FROM t_product LEFT JOIN t_product_refund_rate ON t_product.product_sku = t_product_refund_rate.sku LEFT JOIN t_sales ON t_product.product_sku = t_sales.sku WHERE t_product.completion_date BETWEEN '2024-08-01 00:00:00' AND '2025-12-31 23:59:59';");
+//
+//        Map<Integer, UserEntity> categoryMap = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;")
+//                .stream().collect(Collectors.toMap(UserEntity::getId, Function.identity()));
+//
+//        DecimalFormat decimalFormat = new DecimalFormat("##.00%");
+//
+//
+//        ArrayList<ProductEntity> exportList = new ArrayList<>();
+//
+//
+//        for (UserEntity supplierEntity : productInfoList)
+//        {
+//            ProductEntity productEntity = new ProductEntity();
+//
+//
+//            Integer categoryId = supplierEntity.getCategoryId();
+//            String categoryPath;
+//            UserEntity userEntity4 = categoryMap.get(categoryId);
+//
+//            if (userEntity4 != null)
+//            {
+//                categoryPath = userEntity4.getCategoryName();
+//                Integer id = userEntity4.getParentId();
+//                if (id != null && id != -1)
+//                {
+//                    UserEntity userEntity3 = categoryMap.get(id);
+//                    if (userEntity3 != null)
+//                    {
+//                        categoryPath = userEntity3.getCategoryName() + " -> " + categoryPath;
+//                        id = userEntity3.getParentId();
+//                        if (id != null && id != -1)
+//                        {
+//                            UserEntity userEntity2 = categoryMap.get(id);
+//                            if (userEntity2 != null)
+//                            {
+//                                categoryPath = userEntity2.getCategoryName() + " -> " + categoryPath;
+//                                id = userEntity2.getParentId();
+//                                if (id != null && id != -1)
+//                                {
+//                                    UserEntity userEntity1 = categoryMap.get(id);
+//                                    if (userEntity1 != null)
+//                                    {
+//                                        categoryPath = userEntity1.getCategoryName() + " -> " + categoryPath;
+//
+//                                        id = userEntity1.getParentId();
+//                                        if (id != null && id != -1)
+//                                        {
+//                                            UserEntity userEntity = categoryMap.get(id);
+//                                            if (userEntity != null)
+//                                            {
+//                                                categoryPath = userEntity.getCategoryName() + " -> " + categoryPath;
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                }
+//
+//                productEntity.setCate(categoryPath);
+//                productEntity.setSku(supplierEntity.getProductSku());
+//                productEntity.setSales(supplierEntity.getLeastSixtySales());
+//
+//
+//                Double refundRate60 = supplierEntity.getRefundRate60();
+//
+//                if (refundRate60 == null || refundRate60 == 0)
+//                {
+//                    productEntity.setRefundRate60("0.00%");
+//                }
+//                else
+//                {
+//                    productEntity.setRefundRate60(decimalFormat.format(refundRate60));
+//                }
+//
+//                exportList.add(productEntity);
+//            }
+//        }
+//
+//
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/24-08~24-12.xlsx", ProductEntity.class)
+//                .sheet("退款率")
+//                .doWrite(exportList);
+//    }
 
-        ArrayList<SupplierEntity> parentSkuList = new ArrayList<>();
-
-        EasyExcel.read("C:/Users/wumingjie/Downloads/工作簿2.xlsx", SupplierEntity.class, new DataListener(parentSkuList))
-                .sheet()
-                .doRead();
-
-        List<UserEntity> categoryList = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;");
-        ArrayList<SkuCategoryEntity> exportList = new ArrayList<>();
-
-        List<String> paramsList = parentSkuList.stream().map(SupplierEntity::getSupplierNumber).filter(StringUtils::isNotBlank).collect(Collectors.toList());
-
-        for (List<String> batchSkuList : CollUtil.split(paramsList, 5000))
-        {
-
-            String params = batchSkuList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
-
-            List<UserEntity> skuList = userMapper.queryBySql("SELECT product_sku, category_id FROM t_product WHERE product_sku IN (" + params + ");");
-
-
-            for (UserEntity userEntity : skuList)
-            {
-                SkuCategoryEntity skuCategoryEntity = new SkuCategoryEntity();
-
-                skuCategoryEntity.setSku(userEntity.getProductSku());
-
-                Integer categoryId = userEntity.getCategoryId();
-
-                if (categoryId != null)
-                {
-                    UserEntity category = findCategoryByCid(categoryList, categoryId);
-                    if (category != null)
-                    {
-                        skuCategoryEntity.setCategoryName(category.getCategoryName());
-                    }
-                }
-
-                exportList.add(skuCategoryEntity);
-            }
-        }
 
 
 
-        EasyExcel.write("C:/Users/wumingjie/Desktop/sku分类.xlsx", SkuCategoryEntity.class)
-                .sheet("sku分类信息")
-                .doWrite(exportList);
+//    @Test
+//    public void query()
+//    {
+//        ArrayList<ProductEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/红遍天下单SKU.xlsx/", ProductEntity.class, new DataListener<>(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//        List<String> collect = exportList.stream().map(ProductEntity::getSku).collect(Collectors.toList());
+//
+//
+//        Map<String, Integer> productMap = new HashMap<>();
+//
+//        CollUtil.split(collect, 2000).forEach(subList -> {
+//            String skuJoin = subList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//            Map<String, Integer> subMap = userMapper.queryBySql("SELECT product_sku, product_id FROM t_product WHERE product_sku IN (" + skuJoin + ");").stream()
+//                    .collect(Collectors.toMap(UserEntity::getProductSku, UserEntity::getProductId));
+//            productMap.putAll(subMap);
+//        });
+//
+//        Map<Integer, Integer> supplierMap = new HashMap<>();
+//
+//        CollUtil.split(productMap.values(), 5000).forEach(subList -> {
+//
+//            String productIdJoin = subList.stream().map(String::valueOf).collect(Collectors.joining(","));
+//
+//            Map<Integer, List<UserEntity>> supplierGroup = userMapper.queryBySql("SELECT product_id, supplier_id, priority FROM t_product_supplier WHERE product_id in(" + productIdJoin + ") AND supplier_id != 58123").stream()
+//                    .collect(Collectors.groupingBy(UserEntity::getProductId));
+//
+//            supplierGroup.forEach((id, list) -> {
+//
+//                if (list.size() == 1)
+//                {
+//                    supplierMap.put(id, list.get(0).getSupplierId());
+//                }
+//                else
+//                {
+//                    list.stream()
+//                            .peek(e -> {
+//                                if (e.getPriority() == null)
+//                                {
+//                                    e.setPriority(2);
+//                                }
+//                            })
+//                            .min(Comparator.comparing(UserEntity::getPriority))
+//                            .ifPresent(e -> supplierMap.put(id, e.getSupplierId()));
+//                }
+//            });
+//        });
+//
+//
+//        Map<Integer, String> numberMap = new HashMap<>();
+//        CollUtil.split(supplierMap.values(), 5000).forEach(subList -> {
+//            String skuJoin = subList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//            Map<Integer, String> map = userMapper.queryBySql("SELECT supplier_id, supplier_number FROM t_supplier WHERE supplier_id in(" + skuJoin + ")").stream()
+//                    .collect(Collectors.toMap(UserEntity::getSupplierId, UserEntity::getSupplierNumber));
+//            numberMap.putAll(map);
+//        });
+//
+//
+//        for (ProductEntity entity : exportList)
+//        {
+//            Integer productId = productMap.get(entity.getSku());
+//
+//            if (productId != null)
+//            {
+//                Integer supplierId = supplierMap.get(productId);
+//
+//                if (supplierId != null)
+//                {
+//                    entity.setBakSupplier(numberMap.get(supplierId));
+//                }
+//            }
+//        }
+//
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/红遍天下单SKU-已处理.xlsx", ProductEntity.class)
+//                .sheet("SKU信息")
+//                .doWrite(exportList);
+//    }
 
-    }
+//    @Test
+//    public void query()
+//    {
+//        ArrayList<ProductEntity> exportList = new ArrayList<>();
+//
+//
+//        List<UserEntity> productSupplierList = userMapper.queryBySql("SELECT product_id, supplier_id FROM t_product_supplier WHERE (product_id, supplier_id) IN (SELECT product_id, supplier_id FROM t_product_supplier WHERE product_id IN (SELECT product_id FROM t_product_supplier WHERE supplier_id = 58123) AND supplier_id != 58123);");
+//
+//        HashMap<Integer, List<Integer>> productSupplierMap = new HashMap<>();
+//
+//        for (UserEntity productSupplier : productSupplierList)
+//        {
+//            Integer supplierId = productSupplier.getSupplierId();
+//            Integer productId = productSupplier.getProductId();
+//
+//            if (supplierId == null || productId == null || supplierId == 0 || productId == 0)
+//            {
+//                continue;
+//            }
+//
+//            List<Integer> productList = productSupplierMap.computeIfAbsent(supplierId, e -> new ArrayList<>());
+//
+//            productList.add(productId);
+//        }
+//
+//
+//        HashMap<Integer, UserEntity> supplierMap = new HashMap<>();
+//        CollUtil.split(productSupplierMap.keySet(), 5000).forEach(subList -> {
+//
+//            String supplierIdReq = subList.stream().map(String::valueOf).collect(Collectors.joining(","));
+//            List<UserEntity> supplierList = userMapper.queryBySql("SELECT supplier_id, supplier_number, supplier_name FROM t_supplier WHERE supplier_id IN (" + supplierIdReq + ")");
+//
+//            if (CollUtil.isNotEmpty(supplierList))
+//            {
+//                for (UserEntity supplier : supplierList)
+//                {
+//                    supplierMap.put(supplier.getSupplierId(), supplier);
+//                }
+//            }
+//        });
+//
+//        String productIdRequest = productSupplierMap.values().stream().filter(Objects::nonNull).flatMap(Collection::stream).map(String::valueOf).collect(Collectors.joining(","));
+//
+//        Map<Integer, String> productMap = userMapper.queryBySql("SELECT product_id, product_sku FROM t_product WHERE t_product.product_id IN (" + productIdRequest + ")")
+//                .stream().collect(Collectors.toMap(UserEntity::getProductId, UserEntity::getProductSku));
+//
+//        productSupplierMap.forEach((supplierId, productIdList) -> {
+//
+//            if (supplierId != null && CollUtil.isNotEmpty(productIdList))
+//            {
+//                String productIdReq = productIdList.stream().map(productMap::get).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//                List<UserEntity> inStockList = userMapper.queryBySql("SELECT product_id, quantity, price FROM t_in_stock LEFT JOIN t_in_stock_item ON t_in_stock.in_id = t_in_stock_item.in_id WHERE t_in_stock.confirm_date > '2024-07-01' AND in_status = 2 AND supplier_id = " + supplierId + " AND t_in_stock_item.sku IN (" + productIdReq + ");");
+//
+//                if (CollUtil.isNotEmpty(inStockList))
+//                {
+//                    for (UserEntity inStock : inStockList)
+//                    {
+//                        ProductEntity productEntity = new ProductEntity();
+//                        productEntity.setProductSku(productMap.get(inStock.getProductId()));
+//                        productEntity.setInStockQuantity(inStock.getQuantity());
+//                        productEntity.setPrice(inStock.getPrice());
+//
+//                        UserEntity supplier = supplierMap.get(supplierId);
+//                        if (supplier != null)
+//                        {
+//                            productEntity.setSupplierName(supplier.getSupplierName());
+//                            productEntity.setSupplierNumber(supplier.getSupplierNumber());
+//                        }
+//
+//                        exportList.add(productEntity);
+//                    }
+//                }
+//            }
+//        });
+//
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/红遍天名下SKU2024年七月后被分流供应商采购信息.xlsx", ProductEntity.class)
+//                .sheet("SKU信息")
+//                .doWrite(exportList);
+//    }
+
+//    @Test
+//    public void query()
+//    {
+//        ArrayList<ProductEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/匹配系统编码.xlsx", ProductEntity.class, new DataListener(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//
+//        String collect1 = exportList.stream().map(ProductEntity::getName).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//        Map<String, String> collect = userMapper.queryBySql("SELECT supplier_name, supplier_number FROM t_supplier WHERE supplier_name in (" + collect1 + ") AND is_delete = 0").stream()
+//                .collect(Collectors.toMap(UserEntity::getSupplierName, UserEntity::getSupplierNumber, (v1, v2) -> v1 ));
+//
+//        for (ProductEntity productEntity : exportList)
+//        {
+//            productEntity.setSupplierNumber(collect.get(productEntity.getName()));
+//        }
+//
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/匹配系统编码-已处理.xlsx", ProductEntity.class)
+//                .sheet("SKU信息")
+//                .doWrite(exportList);
+//    }
 
 
+//    @Test
+//    public void join()
+//    {
+//        ArrayList<SupplierEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:\\Users\\wumingjie\\Downloads\\product.prepare.stock.approve_20250120072033672.xlsx", SupplierEntity.class, new DataListener(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//        String collect = exportList.stream().map(SupplierEntity::getSku).filter(StringUtils::isNotBlank).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//        System.out.println(collect);
+//
+//    }
+//
+//    @Test
+//    public void query()
+//    {
+//        ArrayList<ProductLevelStaticsEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/workspace/database/主SKU销售退款信息.xlsx", ProductLevelStaticsEntity.class, new DataListener(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//        Map<Integer, UserEntity> categoryMap = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;")
+//                .stream().collect(Collectors.toMap(UserEntity::getId, Function.identity()));
+//
+//        exportList.removeIf(e -> e.getHistorySales() == null || e.getHistorySales() == 0);
+//
+//        DecimalFormat decimalFormat = new DecimalFormat("##.00%");
+//
+//        for (ProductLevelStaticsEntity supplierEntity : exportList)
+//        {
+//            String category = supplierEntity.getCategory();
+//            if (StringUtils.isNotBlank(category))
+//            {
+//                String categoryPath;
+//
+//                Integer categoryId = (int) Double.parseDouble(category);
+//
+//                UserEntity userEntity4 = categoryMap.get(categoryId);
+//
+//                if (userEntity4 != null)
+//                {
+//                    categoryPath = userEntity4.getCategoryName();
+//                    Integer id = userEntity4.getParentId();
+//                    if (id != null && id != -1)
+//                    {
+//                        UserEntity userEntity3 = categoryMap.get(id);
+//                        if (userEntity3 != null)
+//                        {
+//                            categoryPath = userEntity3.getCategoryName() + " -> " + categoryPath;
+//                            id = userEntity3.getParentId();
+//                            if (id != null && id != -1)
+//                            {
+//                                UserEntity userEntity2 = categoryMap.get(id);
+//                                if (userEntity2 != null)
+//                                {
+//                                    categoryPath = userEntity2.getCategoryName() + " -> " + categoryPath;
+//                                    id = userEntity2.getParentId();
+//                                    if (id != null && id != -1)
+//                                    {
+//                                        UserEntity userEntity1 = categoryMap.get(id);
+//                                        if (userEntity1 != null)
+//                                        {
+//                                            categoryPath = userEntity1.getCategoryName() + " -> " + categoryPath;
+//
+//                                            id = userEntity1.getParentId();
+//                                            if (id != null && id != -1)
+//                                            {
+//                                                UserEntity userEntity = categoryMap.get(id);
+//                                                if (userEntity != null)
+//                                                {
+//                                                    categoryPath = userEntity.getCategoryName() + " -> " + categoryPath;
+//                                                }
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
+//
+//                    }
+//
+//                    supplierEntity.setCategory(categoryPath);
+//
+//                    String refundRate30 = supplierEntity.getRefundRate30();
+//                    supplierEntity.setRefundRate30(StringUtils.isBlank(refundRate30) ? "0.00%" : decimalFormat.format(Double.parseDouble(refundRate30)));
+//
+//
+//                    String refundRate60 = supplierEntity.getRefundRate60();
+//                    supplierEntity.setRefundRate60(StringUtils.isBlank(refundRate60) ? "0.00%" : decimalFormat.format(Double.parseDouble(refundRate60)));
+//
+//                    String refundRateTotal = supplierEntity.getRefundRateTotal();
+//                    supplierEntity.setRefundRateTotal(StringUtils.isBlank(refundRateTotal) ? "0.00%" : decimalFormat.format(Double.parseDouble(refundRateTotal)));
+//                }
+//            }
+//        }
+//
+//        EasyExcel.write("C:/workspace/database/主SKU销售退款信息-已处理.xlsx", ProductLevelStaticsEntity.class)
+//                .sheet("主SKU销售信息")
+//                .doWrite(exportList);
+//    }
 
 
+//    @Test
+//    public void exportAliasSkuOrderInfo()
+//    {
+//        ArrayList<SupplierEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/workspace/database/24-11别名换主订单明细.xlsx", SupplierEntity.class, new DataListener(exportList))
+//                .sheet(0)
+//                .doRead();
+//
+//        Pattern pattern = Pattern.compile(  "别名SKU:[^,]+");
+//
+//
+//        for (SupplierEntity entity : exportList)
+//        {
+//            String remark = entity.getAliasSku();
+//
+//            Matcher matcher = pattern.matcher(remark);
+//
+//            if (matcher.find())
+//            {
+//                String group = matcher.group();
+//
+//                String replace = group.replace("别名SKU:", "");
+//
+//                entity.setAliasSku(replace.replaceAll("替换.*", ""));
+//            }
+//            else
+//            {
+//                System.out.println();
+//            }
+//        }
+//
+//        String sku = exportList.stream().map(SupplierEntity::getAliasSku).filter(StringUtils::isNotBlank).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//        Map<String, UserEntity> skuMap = userMapper.queryBySql("SELECT product_sku, job_number, name FROM t_product left join t_user ON t_product.product_developer = t_user.user_id WHERE product_sku IN (" + sku + ");")
+//                .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity()));
+//
+//        for (SupplierEntity entity : exportList)
+//        {
+//            String aliasSku = entity.getAliasSku();
+//
+//            UserEntity userInfo = skuMap.get(aliasSku);
+//            if (StringUtils.isNotBlank(aliasSku) && userInfo != null)
+//            {
+//                entity.setUsername(userInfo.getName());
+//                entity.setJobNumber(userInfo.getJobNumber());
+//            }
+//        }
+//
+//        EasyExcel.write("C:/workspace/database/24-11别名换主订单明细-已处理.xlsx", SupplierEntity.class)
+//                .sheet("工作表-1")
+//                .doWrite(exportList);
+//    }
 
 
+//    @Test
+//    public void exportPurchaseOrder() throws DocumentException
+//    {
+//        ArrayList<SupplierEntity> exportList = new ArrayList<>();
+//
+//        EasyExcel.read("C:\\workspace\\database\\近半年采购单明细信息.xlsx", SupplierEntity.class, new DataListener(exportList))
+//                .sheet(1)
+//                .doRead();
+//
+//        Map<Integer, UserEntity> categoryMap = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;")
+//                .stream().collect(Collectors.toMap(UserEntity::getId, Function.identity()));
+//        Map<Integer, String> mainMap = userMapper.queryBySql("SELECT category_id as id, category_name FROM t_main_product_category;")
+//                .stream().collect(Collectors.toMap(UserEntity::getId, UserEntity::getCategoryName));
+//
+//        Map<String, String> addrMap = AddressUtils.extractProvinceCityEntity();
+//
+//
+//        for (SupplierEntity supplierEntity : exportList)
+//        {
+//            Integer categoryId = supplierEntity.getCategoryId();
+//            if (categoryId != null)
+//            {
+//                String categoryPath;
+//
+//                UserEntity userEntity4 = categoryMap.get(categoryId);
+//
+//                if (userEntity4 != null)
+//                {
+//                    categoryPath = userEntity4.getCategoryName();
+//                    Integer id = userEntity4.getParentId();
+//                    if (id != null && id != -1)
+//                    {
+//                        UserEntity userEntity3 = categoryMap.get(id);
+//                        if (userEntity3 != null)
+//                        {
+//                            categoryPath = userEntity3.getCategoryName() + " -> " + categoryPath;
+//                            id = userEntity3.getParentId();
+//                            if (id != null && id != -1)
+//                            {
+//                                UserEntity userEntity2 = categoryMap.get(id);
+//                                if (userEntity2 != null)
+//                                {
+//                                    categoryPath = userEntity2.getCategoryName() + " -> " + categoryPath;
+//                                    id = userEntity2.getParentId();
+//                                    if (id != null && id != -1)
+//                                    {
+//                                        UserEntity userEntity1 = categoryMap.get(id);
+//                                        if (userEntity1 != null)
+//                                        {
+//                                            categoryPath = userEntity1.getCategoryName() + " -> " + categoryPath;
+//
+//                                            id = userEntity1.getParentId();
+//                                            if (id != null && id != -1)
+//                                            {
+//                                                UserEntity userEntity = categoryMap.get(id);
+//                                                if (userEntity != null)
+//                                                {
+//                                                    categoryPath = userEntity.getCategoryName() + " -> " + categoryPath;
+//                                                }
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                        }
+//
+//                    }
+//
+//                    supplierEntity.setCategoryPath(categoryPath);
+//                }
+//
+//                String addr = supplierEntity.getSourceGoods();
+//                if (StringUtils.isBlank(addr))
+//                {
+//                    addr = Optional.ofNullable(addrMap.get(supplierEntity.getSourceAddrProvince())).orElse("") + Optional.ofNullable(addrMap.get(supplierEntity.getSourceAddrCity())).orElse("");
+//                }
+//                supplierEntity.setSourceAddrProvince(addr);
+//
+//                String mainProduct = supplierEntity.getMainProduct();
+//                if (StringUtils.isNotBlank(mainProduct))
+//                {
+//                    String main = Arrays.stream(mainProduct.split(",")).filter(StringUtils::isNotBlank).map(Integer::parseInt).map(mainMap::get).filter(StringUtils::isNotBlank).collect(Collectors.joining(","));
+//                    supplierEntity.setMainProduct(main);
+//                }
+//            }
+//        }
+//
+//
+//        EasyExcel.write("C:/workspace/database/近半年采购单明细信息-已处理-2.xlsx", SupplierEntity.class)
+//                .sheet("sku分类信息")
+//                .doWrite(exportList);
+//    }
 
-    @Test
-    public void getSkuMapService()
-    {
-        List<SkuMapDTO> skuMap = skuMapService.getByPlatformSku(Collections.singletonList("24924ZSAWJJ240116008KHS"));
 
-        System.out.println(skuMap);
-    }
+//    @Test
+//    public void exportCategory()
+//    {
+//
+//        ArrayList<SupplierEntity> parentSkuList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/工作簿2.xlsx", SupplierEntity.class, new DataListener(parentSkuList))
+//                .sheet()
+//                .doRead();
+//
+//        List<UserEntity> categoryList = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;");
+//        ArrayList<SkuCategoryEntity> exportList = new ArrayList<>();
+//
+//        List<String> paramsList = parentSkuList.stream().map(SupplierEntity::getSupplierNumber).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+//
+//        for (List<String> batchSkuList : CollUtil.split(paramsList, 5000))
+//        {
+//
+//            String params = batchSkuList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//            List<UserEntity> skuList = userMapper.queryBySql("SELECT product_sku, category_id FROM t_product WHERE product_sku IN (" + params + ");");
+//
+//
+//            for (UserEntity userEntity : skuList)
+//            {
+//                SkuCategoryEntity skuCategoryEntity = new SkuCategoryEntity();
+//
+//                skuCategoryEntity.setSku(userEntity.getProductSku());
+//
+//                Integer categoryId = userEntity.getCategoryId();
+//
+//                if (categoryId != null)
+//                {
+//                    UserEntity category = findCategoryByCid(categoryList, categoryId);
+//                    if (category != null)
+//                    {
+//                        skuCategoryEntity.setCategoryName(category.getCategoryName());
+//                    }
+//                }
+//
+//                exportList.add(skuCategoryEntity);
+//            }
+//        }
+//
+//
+//
+//        EasyExcel.write("C:/Users/wumingjie/Desktop/sku分类.xlsx", SkuCategoryEntity.class)
+//                .sheet("sku分类信息")
+//                .doWrite(exportList);
+//
+//    }
 
-    @Test
-    public void exportSupplier()
-    {
-        ArrayList<SupplierEntity> parentSkuList = new ArrayList<>();
 
-        EasyExcel.read("C:/Users/wumingjie/Downloads/查找产品小类.xlsx", SupplierEntity.class, new DataListener(parentSkuList))
-                .sheet()
-                .doRead();
-
-
-        List<String> collect = parentSkuList.stream().map(SupplierEntity::getSupplierNumber).filter(StringUtils::isNotBlank).collect(Collectors.toList());
-
-
-
-        System.out.println(collect);
-    }
-
-
+//    @Test
+//    public void getSkuMapService()
+//    {
+//        List<SkuMapDTO> skuMap = skuMapService.getByPlatformSku(Collections.singletonList("24924ZSAWJJ240116008KHS"));
+//
+//        System.out.println(skuMap);
+//    }
+//
+//    @Test
+//    public void exportSupplier()
+//    {
+//        ArrayList<SupplierEntity> parentSkuList = new ArrayList<>();
+//
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/查找产品小类.xlsx", SupplierEntity.class, new DataListener(parentSkuList))
+//                .sheet()
+//                .doRead();
+//
+//
+//        List<String> collect = parentSkuList.stream().map(SupplierEntity::getSupplierNumber).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+//
+//
+//
+//        System.out.println(collect);
+//    }
 
 
 //    @Test
@@ -189,188 +833,188 @@ class SpringShardingSphereJdbcApplicationTests
 //    }
 
 
+//    @Test
+//    public void exportLargeSales()
+//    {
+//
+//        List<UserEntity> orderList = userMapper.queryBySql("SELECT platform_order_id FROM t_order WHERE paid_date BETWEEN '2024-12-02 00:00:00' AND '2024-12-02 23:59:59' AND t_order.status IN (3, 4, 15, 16, 17, 25, 27, 28, 31, 33, 90, 10067, 120, 10090, 10089, 10080);");
+//        List<UserEntity> categoryList = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;");
+//
+//
+//        ArrayList<UserEntity> orderItemList = new ArrayList<>();
+//
+//        for (List<UserEntity> subOrderIdList : CollUtil.split(orderList, 5000))
+//        {
+//            List<UserEntity> itemList = userMapper.queryBySql("SELECT product_sku, sale_quantity FROM t_order_item WHERE order_id IN (" + subOrderIdList.stream().map(UserEntity::getPlatformOrderId).map(e -> "'" + e + "'").collect(Collectors.joining(",")) +");");
+//
+//            orderItemList.addAll(itemList);
+//        }
+//
+//        orderList = null;
+//        System.gc();
+//
+//        Map<String, Long> skuSaleList = orderItemList.stream()
+//                .filter(item -> item.getProductSku() != null)
+//                .collect(
+//                        Collectors.groupingBy(
+//                                UserEntity::getProductSku,
+//                                Collectors.summingLong(item -> Optional.ofNullable(item.getSaleQuantity()).orElse(0))
+//                        )
+//                );
+//
+//        ArrayList<LargeSaleExcelEntity> exportList = new ArrayList<>();
+//
+//
+//        for (List<String> subSkuList: CollUtil.split(skuSaleList.keySet(), 5000))
+//        {
+//            String params = subSkuList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//            Map<String, UserEntity> productMap = userMapper.queryBySql("SELECT product_id as id, product_sku, product_title, product_feature, category_id, listing_status, completion_date FROM t_product WHERE product_sku IN (" + params + ");")
+//                    .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity(), (v1, v2) -> v1));
+//
+//            Map<String, UserEntity> saleMap = userMapper.queryBySql("SELECT sku as product_sku, yesterday_sales, least_thirty_sales, least_three_sales, least_seven_sales, least_fifteen_sales, least_sixty_sales, history_sales  FROM t_sales WHERE sku IN (" + params + ");")
+//                    .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity(), (v1, v2) -> v1));
+//
+//            Map<String, UserEntity> stockMap = userMapper.queryBySql("SELECT sku as product_sku, in_transit_stock, stock, stockout  FROM t_stock WHERE sku IN (" + params + ");")
+//                    .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity(), (v1, v2) -> v1));
+//
+//            Map<Integer, List<UserEntity>> purchasePriceMap = new HashMap<>();
+//            String ids = productMap.values().stream().map(UserEntity::getId).map(String::valueOf).collect(Collectors.joining(","));
+//            if (StringUtils.isNotBlank(ids))
+//            {
+//                purchasePriceMap = userMapper.queryBySql("SELECT product_id as id, priority, purchase_price FROM t_product_supplier WHERE product_id IN (" + ids + ");")
+//                        .stream().collect(Collectors.groupingBy(UserEntity::getId));
+//            }
+//
+//            for (String sku : subSkuList)
+//            {
+//                LargeSaleExcelEntity largeSaleExcelEntity = new LargeSaleExcelEntity();
+//
+//                largeSaleExcelEntity.setSku(sku);
 
-
-
-
-    @Test
-    public void exportLargeSales()
-    {
-
-        List<UserEntity> orderList = userMapper.queryBySql("SELECT platform_order_id FROM t_order WHERE paid_date BETWEEN '2024-12-02 00:00:00' AND '2024-12-02 23:59:59' AND t_order.status IN (3, 4, 15, 16, 17, 25, 27, 28, 31, 33, 90, 10067, 120, 10090, 10089, 10080);");
-        List<UserEntity> categoryList = userMapper.queryBySql("SELECT category_id as id, parent_id, category_name FROM t_product_category;");
-
-
-        ArrayList<UserEntity> orderItemList = new ArrayList<>();
-
-        for (List<UserEntity> subOrderIdList : CollUtil.split(orderList, 5000))
-        {
-            List<UserEntity> itemList = userMapper.queryBySql("SELECT product_sku, sale_quantity FROM t_order_item WHERE order_id IN (" + subOrderIdList.stream().map(UserEntity::getPlatformOrderId).map(e -> "'" + e + "'").collect(Collectors.joining(",")) +");");
-
-            orderItemList.addAll(itemList);
-        }
-
-        orderList = null;
-        System.gc();
-
-        Map<String, Long> skuSaleList = orderItemList.stream()
-                .filter(item -> item.getProductSku() != null)
-                .collect(
-                        Collectors.groupingBy(
-                                UserEntity::getProductSku,
-                                Collectors.summingLong(item -> Optional.ofNullable(item.getSaleQuantity()).orElse(0))
-                        )
-                );
-
-        ArrayList<LargeSaleExcelEntity> exportList = new ArrayList<>();
-
-
-        for (List<String> subSkuList: CollUtil.split(skuSaleList.keySet(), 5000))
-        {
-            String params = subSkuList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
-
-            Map<String, UserEntity> productMap = userMapper.queryBySql("SELECT product_id as id, product_sku, product_title, product_feature, category_id, listing_status, completion_date FROM t_product WHERE product_sku IN (" + params + ");")
-                    .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity(), (v1, v2) -> v1));
-
-            Map<String, UserEntity> saleMap = userMapper.queryBySql("SELECT sku as product_sku, yesterday_sales, least_thirty_sales, least_three_sales, least_seven_sales, least_fifteen_sales, least_sixty_sales, history_sales  FROM t_sales WHERE sku IN (" + params + ");")
-                    .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity(), (v1, v2) -> v1));
-
-            Map<String, UserEntity> stockMap = userMapper.queryBySql("SELECT sku as product_sku, in_transit_stock, stock, stockout  FROM t_stock WHERE sku IN (" + params + ");")
-                    .stream().collect(Collectors.toMap(UserEntity::getProductSku, Function.identity(), (v1, v2) -> v1));
-
-            Map<Integer, List<UserEntity>> purchasePriceMap = new HashMap<>();
-            String ids = productMap.values().stream().map(UserEntity::getId).map(String::valueOf).collect(Collectors.joining(","));
-            if (StringUtils.isNotBlank(ids))
-            {
-                purchasePriceMap = userMapper.queryBySql("SELECT product_id as id, priority, purchase_price FROM t_product_supplier WHERE product_id IN (" + ids + ");")
-                        .stream().collect(Collectors.groupingBy(UserEntity::getId));
-            }
-
-            for (String sku : subSkuList)
-            {
-                LargeSaleExcelEntity largeSaleExcelEntity = new LargeSaleExcelEntity();
-
-                largeSaleExcelEntity.setSku(sku);
-//                largeSaleExcelEntity.setLargeSale(skuSaleList.get(sku));
-
-                UserEntity product = productMap.get(sku);
-                if (product != null)
-                {
-                    largeSaleExcelEntity.setTitle(product.getProductTitle());
-                    largeSaleExcelEntity.setLabel(product.getProductFeature());
-
-                    Integer listingStatus = product.getListingStatus();
-                    if (listingStatus != null)
-                    {
-                        switch (listingStatus)
-                        {
-                            case 1:
-                                largeSaleExcelEntity.setListingStatus("上架");
-                                break;
-                            case 2:
-                                largeSaleExcelEntity.setListingStatus("停产下架");
-                                break;
-                            case 6:
-                                largeSaleExcelEntity.setListingStatus("节日下架");
-                                break;
-                            case 7:
-                                largeSaleExcelEntity.setListingStatus("季节下架");
-                                break;
-                        }
-                    }
-
-                    if (product.getCompletionDate() != null)
-                    {
-                        String completion = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(product.getCompletionDate());
-                        String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime());
-                        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-                        Date date1 = null;
-                        Date date2 = null;
-                        Long l = 0L;
-                        try
-                        {
-                            date1 = formatter.parse(completion);
-                            date2 = formatter.parse(now);
-                            l = (date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24);
-                        }
-                        catch (ParseException e)
-                        {
-                            e.printStackTrace();
-                        }
-                        String time = l.intValue() > 365 * 3 ? "超过3年" : (l.intValue() > 365 * 2 ? "3年内" : (l.intValue() > 365 ? "2年内" : (l.intValue() > 182 ? "1年内" : (l.intValue() > 90 ? "半年内" : "3个月内"))));
-                        largeSaleExcelEntity.setCompletionDate(time);
-                    }
-
-                    Integer categoryId = product.getCategoryId();
-
-                    if (categoryId != null)
-                    {
-                        UserEntity c3 = findCategoryByCid(categoryList, categoryId);
-                        if (c3 != null)
-                        {
-                            largeSaleExcelEntity.setClassify3(c3.getCategoryName());
-                            UserEntity c2 = findCategoryByCid(categoryList, c3.getParentId());
-                            if (c2 != null)
-                            {
-                                largeSaleExcelEntity.setClassify2(c2.getCategoryName());
-                                UserEntity c1 = findCategoryByCid(categoryList, c2.getParentId());
-                                if (c1 != null)
-                                {
-                                    largeSaleExcelEntity.setClassify1(c1.getCategoryName());
-                                }
-                            }
-                        }
-                    }
-
-                    List<UserEntity> supplierList = purchasePriceMap.get(product.getId());
-                    if (CollUtil.isNotEmpty(supplierList))
-                    {
-                        supplierList.stream()
-                                .filter(user -> user.getPriority() != null && user.getPurchasePrice() != null)
-                                .min(Comparator.comparing(UserEntity::getPriority))
-                                .map(UserEntity::getPurchasePrice)
-                                .ifPresent(largeSaleExcelEntity::setPrice);
-                    }
-                }
-
-                UserEntity sale = saleMap.get(sku);
-                if (sale != null)
-                {
-                    largeSaleExcelEntity.setSales(sale.getYesterdaySales());
-                    largeSaleExcelEntity.setSales3(sale.getLeastThreeSales());
-                    largeSaleExcelEntity.setSales7(sale.getLeastSevenSales());
-                    largeSaleExcelEntity.setSales15(sale.getLeastFifteenSales());
-                    largeSaleExcelEntity.setSales30(sale.getLeastThirtySales());
-                    largeSaleExcelEntity.setSales60(sale.getLeastSixtySales());
-                    largeSaleExcelEntity.setSalesHis(sale.getHistorySales());
-                }
-
-                UserEntity stock = stockMap.get(sku);
-                if (stock != null)
-                {
-                    largeSaleExcelEntity.setInTransitStock(stock.getInTransitStock());
-                    largeSaleExcelEntity.setStock(stock.getStock());
-                    largeSaleExcelEntity.setStockOut(stock.getStockout());
-                }
-
-                exportList.add(largeSaleExcelEntity);
-            }
-        }
-
-        EasyExcel.write("C:/Users/wumingjie/Desktop/昨日SKU销量信息.xlsx", LargeSaleExcelEntity.class)
-                .sheet("昨日SKU销量信息")
-                .doWrite(exportList);
-    }
+    /// /                largeSaleExcelEntity.setLargeSale(skuSaleList.get(sku));
+//
+//                UserEntity product = productMap.get(sku);
+//                if (product != null)
+//                {
+//                    largeSaleExcelEntity.setTitle(product.getProductTitle());
+//                    largeSaleExcelEntity.setLabel(product.getProductFeature());
+//
+//                    Integer listingStatus = product.getListingStatus();
+//                    if (listingStatus != null)
+//                    {
+//                        switch (listingStatus)
+//                        {
+//                            case 1:
+//                                largeSaleExcelEntity.setListingStatus("上架");
+//                                break;
+//                            case 2:
+//                                largeSaleExcelEntity.setListingStatus("停产下架");
+//                                break;
+//                            case 6:
+//                                largeSaleExcelEntity.setListingStatus("节日下架");
+//                                break;
+//                            case 7:
+//                                largeSaleExcelEntity.setListingStatus("季节下架");
+//                                break;
+//                        }
+//                    }
+//
+//                    if (product.getCompletionDate() != null)
+//                    {
+//                        String completion = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(product.getCompletionDate());
+//                        String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Calendar.getInstance().getTime());
+//                        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+//                        Date date1 = null;
+//                        Date date2 = null;
+//                        Long l = 0L;
+//                        try
+//                        {
+//                            date1 = formatter.parse(completion);
+//                            date2 = formatter.parse(now);
+//                            l = (date2.getTime() - date1.getTime()) / (1000 * 60 * 60 * 24);
+//                        }
+//                        catch (ParseException e)
+//                        {
+//                            e.printStackTrace();
+//                        }
+//                        String time = l.intValue() > 365 * 3 ? "超过3年" : (l.intValue() > 365 * 2 ? "3年内" : (l.intValue() > 365 ? "2年内" : (l.intValue() > 182 ? "1年内" : (l.intValue() > 90 ? "半年内" : "3个月内"))));
+//                        largeSaleExcelEntity.setCompletionDate(time);
+//                    }
+//
+//                    Integer categoryId = product.getCategoryId();
+//
+//                    if (categoryId != null)
+//                    {
+//                        UserEntity c3 = findCategoryByCid(categoryList, categoryId);
+//                        if (c3 != null)
+//                        {
+//                            largeSaleExcelEntity.setClassify3(c3.getCategoryName());
+//                            UserEntity c2 = findCategoryByCid(categoryList, c3.getParentId());
+//                            if (c2 != null)
+//                            {
+//                                largeSaleExcelEntity.setClassify2(c2.getCategoryName());
+//                                UserEntity c1 = findCategoryByCid(categoryList, c2.getParentId());
+//                                if (c1 != null)
+//                                {
+//                                    largeSaleExcelEntity.setClassify1(c1.getCategoryName());
+//                                }
+//                            }
+//                        }
+//                    }
+//
+//                    List<UserEntity> supplierList = purchasePriceMap.get(product.getId());
+//                    if (CollUtil.isNotEmpty(supplierList))
+//                    {
+//                        supplierList.stream()
+//                                .filter(user -> user.getPriority() != null && user.getPurchasePrice() != null)
+//                                .min(Comparator.comparing(UserEntity::getPriority))
+//                                .map(UserEntity::getPurchasePrice)
+//                                .ifPresent(largeSaleExcelEntity::setPrice);
+//                    }
+//                }
+//
+//                UserEntity sale = saleMap.get(sku);
+//                if (sale != null)
+//                {
+//                    largeSaleExcelEntity.setSales(sale.getYesterdaySales());
+//                    largeSaleExcelEntity.setSales3(sale.getLeastThreeSales());
+//                    largeSaleExcelEntity.setSales7(sale.getLeastSevenSales());
+//                    largeSaleExcelEntity.setSales15(sale.getLeastFifteenSales());
+//                    largeSaleExcelEntity.setSales30(sale.getLeastThirtySales());
+//                    largeSaleExcelEntity.setSales60(sale.getLeastSixtySales());
+//                    largeSaleExcelEntity.setSalesHis(sale.getHistorySales());
+//                }
+//
+//                UserEntity stock = stockMap.get(sku);
+//                if (stock != null)
+//                {
+//                    largeSaleExcelEntity.setInTransitStock(stock.getInTransitStock());
+//                    largeSaleExcelEntity.setStock(stock.getStock());
+//                    largeSaleExcelEntity.setStockOut(stock.getStockout());
+//                }
+//
+//                exportList.add(largeSaleExcelEntity);
+//            }
+//        }
+//
+//        EasyExcel.write("C:/Users/wumingjie/Desktop/昨日SKU销量信息.xlsx", LargeSaleExcelEntity.class)
+//                .sheet("昨日SKU销量信息")
+//                .doWrite(exportList);
+//    }
 
     // 根据 cid 查找分类
-    private static UserEntity findCategoryByCid(List<UserEntity> cList, int cid) {
-        for (UserEntity category : cList) {
-            if (category.getId() == cid) {
-                return category;
-            }
-        }
-        return null;
-    }
+//    private static UserEntity findCategoryByCid(List<UserEntity> cList, int cid)
+//    {
+//        for (UserEntity category : cList)
+//        {
+//            if (category.getId() == cid)
+//            {
+//                return category;
+//            }
+//        }
+//        return null;
+//    }
 
 //    @Test
 //    public void getAliasSkuSale()
