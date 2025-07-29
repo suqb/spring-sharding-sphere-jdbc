@@ -2,29 +2,21 @@ package com.suqb.www;
 
 import cn.hutool.core.collection.CollUtil;
 import com.alibaba.excel.EasyExcel;
-import com.baomidou.mybatisplus.core.mapper.Mapper;
 import com.suqb.www.domain.UserEntity;
-import com.suqb.www.domain.dto.SkuMapDTO;
-import com.suqb.www.domain.excel.*;
+import com.suqb.www.domain.excel.ProductEntity;
 import com.suqb.www.listener.DataListener;
 import com.suqb.www.mapper.UserMapper;
 import com.suqb.www.service.SkuMapService;
-import com.suqb.www.util.AddressUtils;
-import org.dom4j.DocumentException;
+import lombok.Data;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.commons.util.StringUtils;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.converter.StringHttpMessageConverter;
 
-import java.text.DecimalFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @SpringBootTest
@@ -39,62 +31,232 @@ class SpringShardingSphereJdbcApplicationTests
     @Autowired
     private StringHttpMessageConverter stringHttpMessageConverter;
     @Autowired
-    private Mapper mapper;
-    @Autowired
     private ListableBeanFactory listableBeanFactory;
-
 
     @Test
     void contextLoads()
     {
     }
 
+    @Data
+    private static class Image
+    {
+        private Integer userId;
+        private String path;
+        private String code;
+    }
+
+
+//    @Test
+//    public void buildCreateAgencyPurchaseLink()
+//    {
+//        List<UserEntity> dataList = userMapper.queryBySql("SELECT id, ai_image_json as json FROM t_print_library");
+//
+//        String sql = "INSERT INTO t_print_image(parent_id, code, image_path, create_by, update_by, type) VALUE (%d, '%s', '%s', %d, %d, 1);";
+//
+//        for (UserEntity data : dataList)
+//        {
+//
+//            String json = data.getJson();
+//
+//            List<Image> imageList = JSON.parseArray(json, Image.class);
+//
+//            for (Image image : imageList)
+//            {
+//                System.err.printf((sql) + "%n", data.getId(), image.getCode(), image.getPath(), image.getUserId(), image.getUserId());
+//            }
+//        }
+//    }
+
+    @Test
+    public void query()
+    {
+        ArrayList<ProductEntity> exportList = new ArrayList<>();
+
+        EasyExcel.read("C:/Users/wumingjie/Downloads/新-查询速卖通近6月所有出单SKU(2).xlsx", ProductEntity.class, new DataListener<>(exportList))
+                .sheet(0)
+                .doRead();
+
+
+        List<String> collect = exportList.stream().map(ProductEntity::getProductSku).collect(Collectors.toList());
+
+
+        Map<String, Integer> productMap = new HashMap<>();
+
+        CollUtil.split(collect, 2000).forEach(subList -> {
+            String skuJoin = subList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
+            Map<String, Integer> subMap = userMapper.queryBySql("SELECT product_sku, product_id FROM t_product WHERE product_sku IN (" + skuJoin + ");").stream()
+                    .collect(Collectors.toMap(UserEntity::getProductSku, UserEntity::getProductId));
+            productMap.putAll(subMap);
+        });
+
+        Map<Integer, Integer> supplierMap = new HashMap<>();
+
+        CollUtil.split(productMap.values(), 5000).forEach(subList -> {
+
+            String productIdJoin = subList.stream().map(String::valueOf).collect(Collectors.joining(","));
+
+            Map<Integer, List<UserEntity>> supplierGroup = userMapper.queryBySql("SELECT product_id, supplier_id, priority FROM t_product_supplier WHERE product_id in(" + productIdJoin + ") AND supplier_id != 58123").stream()
+                    .collect(Collectors.groupingBy(UserEntity::getProductId));
+
+            supplierGroup.forEach((id, list) -> {
+
+                if (list.size() == 1)
+                {
+                    supplierMap.put(id, list.get(0).getSupplierId());
+                }
+                else
+                {
+                    list.stream()
+                            .peek(e -> {
+                                if (e.getPriority() == null)
+                                {
+                                    e.setPriority(2);
+                                }
+                            })
+                            .min(Comparator.comparing(UserEntity::getPriority))
+                            .ifPresent(e -> supplierMap.put(id, e.getSupplierId()));
+                }
+            });
+        });
+
+        Map<Integer, String> numberMap = new HashMap<>();
+        CollUtil.split(supplierMap.values(), 5000).forEach(subList -> {
+            String skuJoin = subList.stream().map(e -> "'" + e + "'").collect(Collectors.joining(","));
+            Map<Integer, String> map = userMapper.queryBySql("SELECT supplier_id, supplier_number FROM t_supplier WHERE supplier_id in(" + skuJoin + ")").stream()
+                    .collect(Collectors.toMap(UserEntity::getSupplierId, UserEntity::getSupplierNumber));
+            numberMap.putAll(map);
+        });
+
+
+        for (ProductEntity entity : exportList)
+        {
+            Integer productId = productMap.get(entity.getProductSku());
+
+            if (productId != null)
+            {
+                Integer supplierId = supplierMap.get(productId);
+
+                if (supplierId != null)
+                {
+                    entity.setSupplierNumber(numberMap.get(supplierId));
+                }
+            }
+        }
+
+
+
+        EasyExcel.write("C:/Users/wumingjie/Downloads/速卖通动销SKU-供应商编号.xlsx", ProductEntity.class)
+                .sheet("Pil")
+                .doWrite(exportList);
+    }
+//
+//
 //    @Test
 //    public void query()
 //    {
 //
 //        ArrayList<ProductEntity> exportList = new ArrayList<>();
 //
-//        EasyExcel.read("C:/Users/wumingjie/Downloads/匹配供应商编号.xlsx/", ProductEntity.class, new DataListener<>(exportList))
-//                .sheet(0)
+//        EasyExcel.read("C:/Users/wumingjie/Downloads/sku需匹配供应商信息(1).xlsx", ProductEntity.class, new DataListener<>(exportList))
+//                .sheet(1)
 //                .doRead();
 //
-//        String collect = exportList.stream().map(ProductEntity::getSku).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//        Map<String, UserEntity> map = new HashMap<>();
 //
+//        CollUtil.split(exportList, 2000).forEach(subList -> {
 //
-//        Map<String, Integer> productInfoList = userMapper.queryBySql("SELECT product_id, product_sku FROM t_product WHERE product_sku IN (" + collect + ");")
-//                .stream().collect(Collectors.toMap(UserEntity::getProductSku, UserEntity::getProductId));
+//            String join = subList.stream().map(ProductEntity::getAlibabaOrderNo).map(e -> "'" + e + "'").collect(Collectors.joining(","));
 //
-//        String collect2 = productInfoList.values().stream().map(String::valueOf).collect(Collectors.joining(","));
+//            Map<String, UserEntity> collect = userMapper.queryBySql("SELECT t_purchase_order.alibaba_order_id, supplier_number, seller_company_name FROM t_purchase_order LEFT JOIN t_supplier ON t_purchase_order.supplier_id = t_supplier.supplier_id LEFT JOIN t_alibaba_order ON t_purchase_order.alibaba_order_id = t_alibaba_order.alibaba_order_id WHERE t_purchase_order.alibaba_order_id IN (" + join + ");")
+//                    .stream()
+//                    .collect(Collectors.toMap(UserEntity::getAlibabaOrderId, Function.identity()));
 //
-//        Map<Integer, List<UserEntity>> supplierGroup = userMapper.queryBySql("SELECT product_id, priority, t_supplier.supplier_number FROM t_product_supplier LEFT JOIN t_supplier ON t_product_supplier.supplier_id = t_supplier.supplier_id WHERE product_id IN (" + collect2 + ");").stream()
-//                .collect(Collectors.groupingBy(UserEntity::getProductId));
+//            map.putAll(collect);
+//        });
 //
-//        for (ProductEntity product : exportList)
-//        {
-//            Integer productId = productInfoList.get(product.getSku());
-//
-//            if (productId != null)
-//            {
-//                List<UserEntity> supplierList = supplierGroup.get(productId);
-//
-//                if (CollUtil.isNotEmpty(supplierList))
-//                {
-//                    supplierList.stream().peek(e -> {
-//                                if (e.getPriority() == null)
-//                                {
-//                                    e.setPriority(0);
-//                                }
-//                            }).min(Comparator.comparing(UserEntity::getPriority))
-//                            .ifPresent(supplier -> product.setSupplierNumber(supplier.getSupplierNumber()));
-//                }
+//        exportList.forEach(item -> {
+//            UserEntity userEntity = map.get(item.getAlibabaOrderNo());
+//            if (userEntity != null) {
+//                item.setSupplierNumber(userEntity.getSupplierNumber());
+//                item.setSeller(userEntity.getSellerCompanyName());
 //            }
-//        }
+//        });
+//
+//        HashMap<String, String> stringStringHashMap = new HashMap<>();
+//
+//        CollUtil.split(exportList, 2000).forEach(subList -> {
+//            String join = subList.stream().map(ProductEntity::getSeller).map(e -> "'" + e + "'").collect(Collectors.joining(","));
+//
+//            userMapper.queryBySql("SELECT supplier_name, supplier_number FROM t_supplier WHERE supplier_name IN (" + join + ");")
+//                    .forEach(item -> stringStringHashMap.put(item.getSupplierName(), item.getSupplierNumber()));
+//        });
+//
+//        exportList.forEach(item -> {
+//            item.setSupplierNumber(stringStringHashMap.get(item.getSeller()));
+//        });
 //
 //
-//        EasyExcel.write("C:/Users/wumingjie/Downloads/匹配供应商编号-已处理.xlsx", ProductEntity.class)
+//        EasyExcel.write("C:/Users/wumingjie/Downloads/1688订单需匹配供应商信息-已处理.xlsx", ProductEntity.class)
 //                .sheet("sku-一级供应商编号")
 //                .doWrite(exportList);
+//
+//    }
+//
+//    public static String getBlackListStatus(Integer statsus)
+//    {
+//        if (statsus == null)
+//        {
+//            return "";
+//        }
+//
+//        switch (statsus)
+//        {
+//            case 0:
+//                return "正常";
+//            case 1:
+//                return "暂停上新";
+//            case 2:
+//                return "永久拉黑";
+//            case 3:
+//                return "灰名单";
+//            case 4:
+//                return "绿名单";
+//            default:
+//                return "";
+//        }
+//    }
+
+
+//    @Test
+//    public void query()
+//    {
+//
+//        String sql = "SELECT product_id, t1.supplier_id FROM t_cloth_product_supplier t1 LEFT JOIN t_supplier t2 ON t1.supplier_id = t2.supplier_id LEFT JOIN t_supplier_extend t3 ON t1.supplier_id = t3.supplier_id WHERE product_id IN (205, 212, 213, 215, 232, 243, 257, 277, 278, 282, 283, 285, 289, 290, 293, 298, 300, 302, 306, 308, 309, 313, 315, 317, 318, 324, 326, 330, 332, 333, 338, 342, 345, 349, 351, 352, 354, 358, 359, 360, 364, 366, 367, 368, 369, 376, 378, 384, 385, 388, 390, 391, 392, 393, 394, 398, 399, 400, 405, 407, 410, 412, 414, 416, 421, 422, 424, 425, 426, 427, 428, 429, 430, 433, 443, 447, 449, 450, 455, 458, 460, 463, 464, 469, 470, 471, 472, 473, 474, 476, 477, 480, 481, 483, 489, 494, 496, 497, 500, 505, 508, 510, 514, 519, 522, 523, 528, 529, 532, 534, 537, 539, 540, 541, 546, 548, 552, 554, 555, 557, 561, 562, 563, 568, 569, 570, 573, 575, 579, 585, 587, 589, 594, 599, 600, 601, 603, 611, 612, 613, 616, 617, 620, 623, 626, 629, 631, 636, 637, 638, 639, 640, 643, 644, 645, 646, 647, 653, 658, 660, 661, 662, 664, 666, 667, 668, 671, 673, 674, 675, 676, 677, 678, 681, 684, 688, 691, 694, 695, 698, 702, 703, 708, 711, 712, 714, 720, 721, 735, 738, 739, 744, 745, 746, 747, 756, 760, 761, 762, 769, 771, 773, 783, 788, 790, 791, 793, 797, 799, 800, 813, 814, 817, 826, 834, 844, 860, 863, 874, 875, 876, 877, 889, 891, 894, 906, 945, 947, 952, 953, 964, 965, 982, 1003, 1057, 1075, 1078, 1090, 1092, 1110, 1119, 1125, 1151, 1158, 1165, 1186, 1194, 1238, 1251, 1270, 1275, 1276, 1277, 1298, 1311, 1313, 1322, 1550, 1551)";
+//
+//        List<UserEntity> dataList = userMapper.queryBySql(sql);
+//
+//        Map<Integer, UserEntity> subMap = dataList.stream()
+//                .collect(Collectors.toMap(UserEntity::getProductId, Function.identity(), (v1, v2) -> v1));
+//
+//        Map<Integer, List<UserEntity>> collect = dataList.stream().collect(Collectors.groupingBy(UserEntity::getProductId));
+//
+//        Set<String> set = subMap.values().stream().map(item -> item.getProductId() + "--" + item.getSupplierId()).collect(Collectors.toSet());
+//
+//        collect.forEach((pid, list) -> {
+//
+//
+//            for (UserEntity userEntity : list)
+//            {
+//                String key = pid + "--" + userEntity.getSupplierId();
+//
+//                if (!set.contains(key))
+//                {
+//                    System.err.printf("DELETE FROM t_cloth_product_supplier WHERE supplier_id = %d AND product_id = %d;%n", userEntity.getSupplierId(), pid);
+//                }
+//            }
+//
+//        });
 //    }
 
 //    @Test
@@ -244,8 +406,6 @@ class SpringShardingSphereJdbcApplicationTests
 //                .sheet("退款率")
 //                .doWrite(exportList);
 //    }
-
-
 
 
 //    @Test

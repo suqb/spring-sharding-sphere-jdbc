@@ -23,7 +23,8 @@ public class TestController
     }
     
     @GetMapping("/test")
-    public Map<String, Object> test(TestRequest data) {
+    public Map<String, Object> test(@RequestParam String  data) {
+        System.err.println(data);
         return new HashMap<String, Object>() {{
             put("code", 200);
         }};

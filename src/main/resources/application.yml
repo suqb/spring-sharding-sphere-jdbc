@@ -1,5 +1,7 @@
 server:
   port: 8989
+  servlet:
+    context-path: /
 spring:
   shardingsphere:
     datasource:
@@ -14,9 +16,9 @@ spring:
         jdbc-url: jdbc:mysql://192.168.98.43:3306/bessky_pss?useUnicode=true&characterEncoding=utf8&useSSL=false
         username: fix_user
         password: DbTest@9098%
-#        jdbc-url: jdbc:mysql://10.60.0.66:3306/bessky_pss?useUnicode=true&characterEncoding=utf8&useSSL=false
-#        username: bessky_pss
-#        password: 20092009
+#        jdbc-url: jdbc:mysql://localhost:3306/bessky_pss?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true
+#        username: root
+#        password: 123456
     rules:
       sharding:
         tables:

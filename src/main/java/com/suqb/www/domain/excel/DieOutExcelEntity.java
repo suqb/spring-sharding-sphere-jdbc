@@ -10,34 +10,31 @@ import java.math.BigDecimal;
 @Data
 public class DieOutExcelEntity implements Entity
 {
-    @ExcelProperty(value = "唯一标识")
+    @ExcelProperty(value = "供应商-1")
     private Integer id;
 
-    @ExcelProperty(value = "sku")
+    @ExcelProperty(value = "供应商-2")
     private String sku;
 
-    @ExcelProperty(value = "单价")
+    @ExcelProperty(value = "供应商-3")
     private BigDecimal price;
 
-    @ExcelProperty(value = "30天销量")
+    @ExcelProperty(value = "供应商-4")
     private Integer sales30;
 
-    @ExcelProperty(value = "60天销量")
+    @ExcelProperty(value = "供应商-5")
     private Integer sales60;
 
-    @ExcelProperty(value = "90天销量")
+    @ExcelProperty(value = "供应商-6")
     private Integer sales90;
 
-    @ExcelProperty(value = "历史销量")
+    @ExcelProperty(value = "供应商-7")
     private Integer salesHis;
 
-    @ExcelProperty(value = "开发员唯一标识")
+    @ExcelProperty(value = "供应商-8")
     private Integer devId;
 
-    @ExcelProperty(value = "开发员")
+    @ExcelProperty(value = "供应商-9")
     private String dev;
-
-    @ExcelProperty(value = "开发部门")
-    private String dept;
 
 }
